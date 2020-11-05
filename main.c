@@ -97,7 +97,7 @@ void *to_read(void *thread_data) {
             printf("Reader %d в ожидании\n", data->number);
             pthread_mutex_lock (&mutex);
             pthread_cond_wait(&cv, &mutex);
-            printf("Reader %d захватил\n", data->number);
+            printf("Reader %d захватил мьютекс\n", data->number);
             file_desc = open(fname, O_RDONLY, 00666);
             if (file_desc == -1) {
                 pthread_mutex_unlock (&mutex);
@@ -113,7 +113,7 @@ void *to_read(void *thread_data) {
         int *int_buf = (int *) buffer;
         int max = INT_MIN;
         for (int i = 0; i < file_size / 4; i++)
-            max = int_buf[i]>max?buffer[i]:max;
+            max = int_buf[i]>max?int_buf[i]:max;
         printf("READ %d Максимум: %d.\n", data->number, max);
         free(buffer);
         pthread_mutex_unlock (&mutex);
