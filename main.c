@@ -17,6 +17,7 @@
 #define I 53
 FILE *URANDOM;
 int stop = 0;
+int exit_readers=0;
 pthread_mutex_t mutex;
 pthread_cond_t cv;
 int started_to_fill = 0;
@@ -71,11 +72,6 @@ void seq_write(void *ptr, int size, int n, int fd, const char* filepath) {
     free((char *) buff);
 }
 
-int read_int_from_file(FILE *file) {
-    int i = 0;
-    fread(&i, 4, 1, file);
-    return i;
-}
 void *fill_area(void *thread_data) {
     generator *gen = (generator *) thread_data;
     atomic_fetch_add(&started_to_fill, 1);
@@ -83,7 +79,7 @@ void *fill_area(void *thread_data) {
         printf("Область заполнена данными\n");
     do {
         for (int i = 0; i < gen->size_of_mem; i++)
-            gen->start[i] = read_int_from_file(URANDOM);
+            fread(&gen->start[i] , 4, 1, URANDOM);
     } while (!stop);
     return NULL;
 }
@@ -119,6 +115,8 @@ void *to_read(void *thread_data) {
         pthread_mutex_unlock (&mutex);
         printf("READ %d освободил мьютекс\n", data->number);
     } while (!stop);
+    exit_readers++;
+    printf("READ %d threads exit\n", exit_readers);
     return NULL;
 }
 void *to_write(void *thread_data) {
