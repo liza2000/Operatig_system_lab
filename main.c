@@ -94,15 +94,15 @@ void *to_read(void *thread_data) {
         char *fname = "labfile";
         int file_desc = -1;
         while (file_desc == -1) {
-            printf("[READER-%d] wait for mutex \n", data->number);
+            printf("Reader %d в ожидании\n", data->number);
             pthread_mutex_lock (&mutex);
             pthread_cond_wait(&cv, &mutex);
-            printf("[READER-%d] captured mutex\n", data->number);
+            printf("Reader %d захватил\n", data->number);
             file_desc = open(fname, O_RDONLY, 00666);
             if (file_desc == -1) {
                 pthread_mutex_unlock (&mutex);
-                printf("[READER-%d] free mutex\n", data->number);
-                printf("[READER-%d] I/O error on open file.\n", data->number);
+                printf("Reader %d освободил мьютекс\n", data->number);
+                printf("Reader %d ошибка при открытии файла\n", data->number);
             }
         }
         struct stat st;
