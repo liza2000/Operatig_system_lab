@@ -71,6 +71,11 @@ void seq_write(void *ptr, int size, int n, int fd, const char* filepath) {
     free((char *) buff);
 }
 
+int read_int_from_file(FILE *file) {
+    int i = 0;
+    fread(&i, 4, 1, file);
+    return i;
+}
 void *fill_area(void *thread_data) {
     generator *gen = (generator *) thread_data;
     atomic_fetch_add(&started_to_fill, 1);
@@ -78,34 +83,43 @@ void *fill_area(void *thread_data) {
         printf("Область заполнена данными\n");
     do {
         for (int i = 0; i < gen->size_of_mem; i++)
-            fread(&gen->start[i], 4, 1, URANDOM);
+            gen->start[i] = read_int_from_file(URANDOM);
     } while (!stop);
+    return NULL;
 }
 void *to_read(void *thread_data) {
     reader *data = (reader *) thread_data;
     printf("READ %d запущен\n", data->number);
     do {
-        int file_desc;
-        char fname[7] = "labfile";
-        printf("READ %d в ожидании \n", data->number);
-        pthread_mutex_lock (&mutex);
-        pthread_cond_wait(&cv, &mutex);
-        printf("READ %d захватил мьютекс\n", data->number);
-        file_desc = open(fname, O_RDONLY, 00666);
+        char *fname = "labfile";
+        int file_desc = -1;
+        while (file_desc == -1) {
+            printf("[READER-%d] wait for mutex \n", data->number);
+            pthread_mutex_lock (&mutex);
+            pthread_cond_wait(&cv, &mutex);
+            printf("[READER-%d] captured mutex\n", data->number);
+            file_desc = open(fname, O_RDONLY, 00666);
+            if (file_desc == -1) {
+                pthread_mutex_unlock (&mutex);
+                printf("[READER-%d] free mutex\n", data->number);
+                printf("[READER-%d] I/O error on open file.\n", data->number);
+            }
+        }
         struct stat st;
         stat(fname, &st);
         int file_size = st.st_size;
-        int *buffer =(int *) seq_read(file_desc, file_size);
+        char *buffer = seq_read(file_desc, file_size);
         close(file_desc);
+        int *int_buf = (int *) buffer;
         int max = INT_MIN;
         for (int i = 0; i < file_size / 4; i++)
-            max = buffer[i]>max?buffer[i]:max;
+            max = int_buf[i]>max?buffer[i]:max;
         printf("READ %d Максимум: %d.\n", data->number, max);
         free(buffer);
         pthread_mutex_unlock (&mutex);
         printf("READ %d освободил мьютекс\n", data->number);
     } while (!stop);
-
+    return NULL;
 }
 void *to_write(void *thread_data) {
     writer *data = (writer *) thread_data;
@@ -125,6 +139,7 @@ void *to_write(void *thread_data) {
         pthread_mutex_unlock (&mutex);
         printf("WRITE освободил мьютекс \n");
     } while (!stop);
+    return NULL;
 }
 
 int main() {
